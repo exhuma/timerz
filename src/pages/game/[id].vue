@@ -1,11 +1,12 @@
 <template>
   <v-container
     v-if="game"
-    class="pa-2 pa-sm-4"
+    class="pa-2 pa-sm-4 d-flex flex-column"
     fluid
+    style="height: 100dvh;"
   >
     <!-- Header bar -->
-    <v-row align="center" class="mb-2" no-gutters>
+    <v-row align="center" class="mb-2 flex-grow-0" no-gutters>
       <v-col cols="auto">
         <v-btn
           icon="mdi-arrow-left"
@@ -31,27 +32,26 @@
       </v-col>
     </v-row>
 
-    <!-- Player cards grid -->
-    <v-row dense>
-      <v-col
+    <!-- Player cards grid: fills remaining viewport space -->
+    <div class="d-flex flex-wrap justify-center align-content-center flex-grow-1">
+      <div
         v-for="player in game.players"
         :key="player.id"
-        cols="6"
-        :sm="smCols"
+        class="pa-1"
+        :style="cardWrapperStyle"
       >
-        <v-responsive :aspect-ratio="1">
-          <PlayerCard
-            :active="game.activePlayerId === player.id"
-            :mode="game.mode"
-            :player="player"
-            :progress="progressFor(player)"
-            :running="game.running"
-            :time-limit-ms="game.timeLimitMs"
-            @activate="svc.activatePlayer(game!.id, player.id)"
-          />
-        </v-responsive>
-      </v-col>
-    </v-row>
+        <PlayerCard
+          :active="game.activePlayerId === player.id"
+          :mode="game.mode"
+          :player="player"
+          :progress="progressFor(player)"
+          :running="game.running"
+          style="height: 100%;"
+          :time-limit-ms="game.timeLimitMs"
+          @activate="svc.activatePlayer(game!.id, player.id)"
+        />
+      </div>
+    </div>
   </v-container>
 
   <!-- Game not found -->
@@ -80,19 +80,58 @@
     onUnmounted,
   } from 'vue'
   import { useRoute } from 'vue-router'
+  import { useDisplay } from 'vuetify'
   import { GameServiceKey } from '@/services/gameService'
 
   const route = useRoute()
   const svc = inject(GameServiceKey)!
   const gameId = (route.params as { id: string }).id
+  const { width, height } = useDisplay()
 
   const game = computed(() => svc.getGame(gameId))
 
-  /** 3 cards per row on sm+ for 5-6 players, else 2. */
-  const smCols = computed(() => {
-    const count = game.value?.players.length ?? 4
-    return count >= 5 ? 4 : 6
+  /** Number of cards per row based on player count. */
+  const cardsPerRow = computed(() => {
+    const n = game.value?.players.length ?? 4
+    if (n <= 2) return 2
+    if (n === 3) return 3
+    if (n === 4) return 2
+    if (n <= 6) return 3
+    return 4
   })
+
+  /**
+   * Square card size (px) that fits the full player grid
+   * within the visible viewport. Minimum 100px.
+   * HEADER: approximate header row height.
+   * PAD: container padding (pa-2 = 8px × 2 sides × 2 axes).
+   * CARD_GAP: pa-1 (4px) × 2 sides per card.
+   */
+  const cardSize = computed(() => {
+    const n = game.value?.players.length ?? 4
+    const cols = cardsPerRow.value
+    const rows = Math.ceil(n / cols)
+    const HEADER = 64
+    const PAD = 32
+    const CARD_GAP = 8
+    const availableWidthPerCard
+      = (width.value - PAD - CARD_GAP * cols) / cols
+    const availableHeightPerCard
+      = (height.value - HEADER - PAD - CARD_GAP * rows)
+        / rows
+    return Math.max(
+      100,
+      Math.floor(Math.min(
+        availableWidthPerCard,
+        availableHeightPerCard,
+      )),
+    )
+  })
+
+  const cardWrapperStyle = computed(() => ({
+    width: `${cardSize.value}px`,
+    height: `${cardSize.value}px`,
+  }))
 
   /**
    * Progress bar value (0-100) representing each player's
