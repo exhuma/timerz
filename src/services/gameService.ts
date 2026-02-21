@@ -4,6 +4,34 @@ import { reactive } from 'vue'
 
 const STORAGE_KEY = 'timerz-games'
 
+/**
+ * Generate a UUID v4.
+ * Falls back to a Math.random-based implementation when
+ * crypto.randomUUID is not available (plain HTTP on a
+ * non-localhost address is a non-secure context and does
+ * not expose crypto.randomUUID).
+ * The fallback uses Math.random which is NOT
+ * cryptographically secure; however IDs are only used as
+ * localStorage keys within a single browser session and
+ * carry no security implications.
+ */
+function generateId (): string {
+  if (
+    typeof crypto !== 'undefined'
+    && typeof crypto.randomUUID === 'function'
+  ) {
+    return crypto.randomUUID()
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(
+    /[xy]/g,
+    c => {
+      const r = Math.trunc(Math.random() * 16)
+      const v = c === 'x' ? r : (r & 0x3) | 0x8
+      return v.toString(16)
+    },
+  )
+}
+
 function loadGames (): Game[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -31,12 +59,12 @@ export function createGame (
   timeLimitMs: number,
 ): Game {
   const players: Player[] = playerNames.map(n => ({
-    id: crypto.randomUUID(),
+    id: generateId(),
     name: n,
     elapsedMs: 0,
   }))
   const game: Game = {
-    id: crypto.randomUUID(),
+    id: generateId(),
     name,
     mode,
     timeLimitMs,
