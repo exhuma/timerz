@@ -7,5 +7,11 @@
 </template>
 
 <script lang="ts" setup>
-  //
+  import { provide } from 'vue'
+  import {
+    GameServiceKey,
+    useGameService,
+  } from '@/services/gameService'
+
+  provide(GameServiceKey, useGameService())
 </script>
